@@ -71,8 +71,10 @@ class MediaLibrary : public IMediaLibrary, public IDeviceListerCb
         virtual MediaPtr media( int64_t mediaId ) const override;
         virtual MediaPtr media( const std::string& path ) const override;
         virtual MediaPtr addMedia( const std::string& mrl ) override;
+        virtual MediaPtr addP2PMedia( int64_t parentMediaId, uint8_t type, const std::string& title, const std::string& mrl ) override;
         virtual std::vector<MediaPtr> audioFiles( SortingCriteria sort, bool desc) const override;
         virtual std::vector<MediaPtr> videoFiles( SortingCriteria sort, bool desc) const override;
+        virtual std::vector<MediaPtr> transportFiles( SortingCriteria sort, bool desc) const override;
 
         virtual void addDiscoveredFile( std::shared_ptr<fs::IFile> fileFs,
                                         std::shared_ptr<Folder> parentFolder,
@@ -151,6 +153,7 @@ class MediaLibrary : public IMediaLibrary, public IDeviceListerCb
         void refreshDevices(factory::IFileSystem& fsFactory);
 
         virtual void forceRescan() override;
+        virtual void reinit() override;
 
         static bool isExtensionSupported( const char* ext );
 

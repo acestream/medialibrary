@@ -75,8 +75,9 @@
 namespace medialibrary
 {
 
+// Extensions MUST be ordered alphabeticaly!
 const char* const MediaLibrary::supportedExtensions[] = {
-    "3gp", "a52", "aac", "ac3", "aif", "aifc", "aiff", "alac", "amr",
+    "3gp", "a52", "aac", "ac3", "acelive", "aif", "aifc", "aiff", "alac", "amr",
     "amv", "aob", "ape", "asf", "asx", "avi", "b4s", "conf", /*"cue",*/
     "divx", "dts", "dv", "flac", "flv", "gxf", "ifo", "iso",
     "it", "itml",  "m1v", "m2t", "m2ts", "m2v", "m3u", "m3u8",
@@ -85,7 +86,7 @@ const char* const MediaLibrary::supportedExtensions[] = {
     "mpeg1", "mpeg2", "mpeg4", "mpg", "mts", "mxf", "nsv",
     "nuv", "oga", "ogg", "ogm", "ogv", "ogx", "oma", "opus",
     "pls", "ps", "qtl", "ram", "rec", "rm", "rmi", "rmvb",
-    "s3m", "sdp", "spx", "tod", "trp", "ts", "tta", "vlc",
+    "s3m", "sdp", "spx", "tod", "torrent", "trp", "ts", "tta", "vlc",
     "vob", "voc", "vqf", "vro", "w64", "wav", "wax", "webm",
     "wma", "wmv", "wmx", "wpl", "wv", "wvx", "xa", "xm", "xspf"
 };
@@ -408,6 +409,37 @@ MediaPtr MediaLibrary::addMedia( const std::string& mrl )
     }
 }
 
+MediaPtr MediaLibrary::addP2PMedia( const int64_t parentMediaId, uint8_t type, const std::string& title, const std::string& mrl )
+{
+    try
+    {
+        return sqlite::Tools::withRetries( 3, [this, &parentMediaId, &type, &title, &mrl]() -> MediaPtr {
+            auto t = m_dbConnection->newTransaction();
+            auto media = Media::create( this, (IMedia::Type)type, title );
+            if ( media == nullptr ) {
+                // for testing
+                LOG_ERROR( "processTransportFiles: create failed" );
+                return nullptr;
+            }
+            media->setParentMediaId( parentMediaId );
+            media->setP2P( true );
+            media->save();
+            if ( media->addExternalMrl( mrl, IFile::Type::Main ) == nullptr ) {
+                // for testing
+                LOG_ERROR( "processTransportFiles: add file failed" );
+                return nullptr;
+            }
+            t->commit();
+            return media;
+        });
+    }
+    catch ( const sqlite::errors::Generic& ex )
+    {
+        LOG_ERROR( "Failed to create external media: ", ex.what() );
+        return nullptr;
+    }
+}
+
 std::vector<MediaPtr> MediaLibrary::audioFiles( SortingCriteria sort, bool desc ) const
 {
     return Media::listAll( this, IMedia::Type::Audio, sort, desc );
@@ -416,6 +448,11 @@ std::vector<MediaPtr> MediaLibrary::audioFiles( SortingCriteria sort, bool desc 
 std::vector<MediaPtr> MediaLibrary::videoFiles( SortingCriteria sort, bool desc ) const
 {
     return Media::listAll( this, IMedia::Type::Video, sort, desc );
+}
+
+std::vector<MediaPtr> MediaLibrary::transportFiles( SortingCriteria sort, bool desc ) const
+{
+    return Media::listAll( this, IMedia::Type::TransportFile, sort, desc );
 }
 
 bool MediaLibrary::isExtensionSupported( const char* ext )
@@ -1264,6 +1301,12 @@ void MediaLibrary::forceRescan()
         m_parser->restore();
         m_parser->resume();
     }
+}
+
+void MediaLibrary::reinit()
+{
+    clearCache();
+    forceRescan();
 }
 
 bool MediaLibrary::onDevicePlugged( const std::string& uuid, const std::string& mountpoint )

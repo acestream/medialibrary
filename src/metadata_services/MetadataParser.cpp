@@ -39,6 +39,7 @@
 #include "utils/Directory.h"
 #include "utils/Filename.h"
 #include "utils/Url.h"
+#include "utils/String.h"
 #include "utils/ModificationsNotifier.h"
 #include "discoverer/FsDiscoverer.h"
 #include "discoverer/probe/PathProbe.h"
@@ -161,6 +162,33 @@ parser::Task::Status MetadataParser::run( parser::Task& task )
         task.destroy( m_ml, task.id() );
         return parser::Task::Status::Success;
     }
+
+    //:ace
+    bool isTransportFile = false;
+    const char* transportFileExtensions[] = { ".acelive", ".torrent" };
+    for( auto it = std::begin(transportFileExtensions); it != std::end(transportFileExtensions); it++) {
+        if( utils::string::endsWith(task.mrl, *it) ) {
+            isTransportFile = true;
+        }
+
+    }
+
+    if ( isTransportFile ) {
+        LOG_INFO( "Got transport file: ", task.mrl );
+
+        // Complete this step and thumbnailer step
+        task.markStepCompleted( parser::Task::ParserStep::MetadataAnalysis );
+        task.markStepCompleted( parser::Task::ParserStep::Thumbnailer );
+        if ( task.saveParserStep() == false )
+            return parser::Task::Status::Fatal;
+
+        task.media->setType( IMedia::Type::TransportFile );
+        task.media->save();
+        m_notifier->notifyMediaCreation( task.media );
+
+        return parser::Task::Status::Success;
+    }
+    ///ace
 
     const auto& tracks = task.vlcMedia.tracks();
 

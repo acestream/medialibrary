@@ -73,7 +73,10 @@ Media::Media( MediaLibraryPtr ml, sqlite::Row& row )
         >> m_title
         >> m_filename
         >> m_isFavorite
-        >> m_isPresent;
+        >> m_isPresent
+        >> m_isParsed
+        >> m_isP2P
+        >> m_parentMediaId;
 }
 
 Media::Media( MediaLibraryPtr ml, const std::string& title, Type type )
@@ -91,6 +94,9 @@ Media::Media( MediaLibraryPtr ml, const std::string& title, Type type )
     , m_filename( title )
     , m_isFavorite( false )
     , m_isPresent( true )
+    , m_isParsed( false )
+    , m_isP2P( false )
+    , m_parentMediaId( 0 )
     , m_changed( false )
 {
 }
@@ -362,11 +368,11 @@ bool Media::save()
 {
     static const std::string req = "UPDATE " + policy::MediaTable::Name + " SET "
             "type = ?, subtype = ?, duration = ?, release_date = ?,"
-            "thumbnail = ?, title = ? WHERE id_media = ?";
+            "thumbnail = ?, title = ?, is_parsed = ?, is_p2p = ?, parent_media_id = ? WHERE id_media = ?";
     if ( m_changed == false )
         return true;
     if ( sqlite::Tools::executeUpdate( m_ml->getConn(), req, m_type, m_subType, m_duration,
-                                       m_releaseDate, m_thumbnail, m_title, m_id ) == false )
+                                       m_releaseDate, m_thumbnail, m_title, m_isParsed, m_isP2P, m_parentMediaId, m_id ) == false )
     {
         return false;
     }
@@ -472,6 +478,21 @@ IMedia::Type Media::type()
     return m_type;
 }
 
+bool Media::isParsed()
+{
+    return m_isParsed;
+}
+
+bool Media::isP2P()
+{
+    return m_isP2P;
+}
+
+int64_t Media::parentMediaId()
+{
+    return m_parentMediaId;
+}
+
 IMedia::SubType Media::subType() const
 {
     return m_subType;
@@ -482,6 +503,30 @@ void Media::setType( Type type )
     if ( m_type == type )
         return;
     m_type = type;
+    m_changed = true;
+}
+
+void Media::setParsed( bool parsed )
+{
+    if ( m_isParsed == parsed )
+        return;
+    m_isParsed = parsed;
+    m_changed = true;
+}
+
+void Media::setP2P( bool p2p )
+{
+    if ( m_isP2P == p2p )
+        return;
+    m_isP2P = p2p;
+    m_changed = true;
+}
+
+void Media::setParentMediaId( int64_t id )
+{
+    if ( m_parentMediaId == id )
+        return;
+    m_parentMediaId = id;
     m_changed = true;
 }
 
@@ -533,7 +578,10 @@ void Media::createTable( sqlite::Connection* connection )
             "title TEXT COLLATE NOCASE,"
             "filename TEXT,"
             "is_favorite BOOLEAN NOT NULL DEFAULT 0,"
-            "is_present BOOLEAN NOT NULL DEFAULT 1"
+            "is_present BOOLEAN NOT NULL DEFAULT 1,"
+            "is_parsed BOOLEAN NOT NULL DEFAULT 0,"
+            "is_p2p BOOLEAN NOT NULL DEFAULT 0,"
+            "parent_media_id INTEGER"
             ")";
 
     const std::string vtableReq = "CREATE VIRTUAL TABLE IF NOT EXISTS "

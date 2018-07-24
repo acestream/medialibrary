@@ -53,6 +53,7 @@ class IMedia
             Video,
             Audio,
             External,
+            TransportFile,
         };
         enum class SubType : uint8_t
         {
@@ -99,7 +100,14 @@ class IMedia
 
         virtual int64_t id() const = 0;
         virtual Type type() = 0;
+        virtual bool isParsed() = 0;
+        virtual bool isP2P() = 0;
+        virtual int64_t parentMediaId() = 0;
         virtual SubType subType() const = 0;
+        virtual void setType( Type type ) = 0;
+        virtual void setParsed( bool parsed ) = 0;
+        virtual void setP2P( bool p2p ) = 0;
+        virtual void setParentMediaId( int64_t id ) = 0;
         virtual const std::string& title() const = 0;
         virtual bool setTitle( const std::string& title ) = 0;
         virtual AlbumTrackPtr albumTrack() const = 0;
@@ -141,6 +149,7 @@ class IMedia
         ///
         virtual bool setMetadata( MetadataType type, const std::string& value ) = 0;
         virtual bool setMetadata( MetadataType type, int64_t value ) = 0;
+        virtual bool save() = 0;
 };
 
 }

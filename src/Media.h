@@ -90,8 +90,14 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
 
         virtual int64_t id() const override;
         virtual Type type() override;
+        virtual bool isParsed() override;
+        virtual bool isP2P() override;
+        virtual int64_t parentMediaId() override;
         virtual SubType subType() const override;
-        void setType( Type type );
+        virtual void setType( Type type ) override;
+        virtual void setParsed( bool parsed ) override;
+        virtual void setP2P( bool p2p ) override;
+        virtual void setParentMediaId( int64_t id ) override;
         virtual const std::string& title() const override;
         virtual bool setTitle( const std::string& title ) override;
         ///
@@ -132,7 +138,7 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
 
         void setReleaseDate( unsigned int date );
         void setThumbnail( const std::string& thumbnail );
-        bool save();
+        bool save() override;
 
         std::shared_ptr<File> addFile( const fs::IFile& fileFs, int64_t parentFolderId,
                                        bool isFolderFsRemovable, IFile::Type type );
@@ -164,6 +170,9 @@ private:
         std::string m_filename;
         bool m_isFavorite;
         bool m_isPresent;
+        bool m_isParsed;
+        bool m_isP2P;
+        int64_t m_parentMediaId;
 
         // Auto fetched related properties
         mutable Cache<AlbumTrackPtr> m_albumTrack;
