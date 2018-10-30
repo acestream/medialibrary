@@ -146,10 +146,19 @@ bool File::isExternal() const
 
 std::shared_ptr<Media> File::media() const
 {
-    if ( m_mediaId == 0 )
+    if ( m_mediaId == 0 ) {
+        // for testing
+        LOG_INFO( "no media: mrl=", m_mrl, " media_id=", m_mediaId );
         return nullptr;
+    }
+
+    // for testing
+    bool isnull = (m_media.get().lock() == nullptr);
+    LOG_INFO( "got media: mrl=", m_mrl, " media_id=", m_mediaId, " cached=", m_media.isCached(), " isnull=", isnull );
+
     auto lock = m_media.lock();
-    if ( m_media.isCached() == false )
+    // Cached item can be null (after history was cleared by user)
+    if ( m_media.isCached() == false || m_media.get().lock() == nullptr )
     {
         auto media = Media::fetch( m_ml, m_mediaId );
         assert( isDeleted() == true || media != nullptr );
@@ -213,6 +222,9 @@ void File::createTriggers(sqlite::Connection* dbConnection)
 std::shared_ptr<File> File::createFromMedia( MediaLibraryPtr ml, int64_t mediaId, Type type, const fs::IFile& fileFs,
                                              int64_t folderId, bool isRemovable )
 {
+    // for testing
+    LOG_INFO( "create from media id: media_id=", mediaId, " folder_id=", folderId );
+
     assert( mediaId > 0 );
     auto self = std::make_shared<File>( ml, mediaId, 0, type, fileFs, folderId, isRemovable );
     static const std::string req = "INSERT INTO " + policy::FileTable::Name +
@@ -229,7 +241,7 @@ std::shared_ptr<File> File::createFromMedia( MediaLibraryPtr ml, int64_t mediaId
                                              const std::string& mrl )
 {
     // for testing
-    LOG_INFO( "processTransportFiles:createFromMedia: mrl", mrl );
+    LOG_INFO( "create from mrl: mrl=", mrl, " media_id=", mediaId );
 
     assert( mediaId > 0 );
     // Sqlite won't ensure uniqueness for (folder_id, mrl) when folder_id is null, so we have to ensure
@@ -255,6 +267,9 @@ std::shared_ptr<File> File::createFromMedia( MediaLibraryPtr ml, int64_t mediaId
 std::shared_ptr<File> File::createFromPlaylist( MediaLibraryPtr ml, int64_t playlistId, const fs::IFile& fileFs,
                                                 int64_t folderId, bool isRemovable )
 {
+    // for testing
+    LOG_INFO( "create from playlist: playlist_id=", playlistId, " folder_id=", folderId );
+
     assert( playlistId > 0 );
     const auto type = IFile::Type::Playlist;
     auto self = std::make_shared<File>( ml, 0, playlistId, type , fileFs, folderId, isRemovable );
@@ -297,8 +312,15 @@ std::shared_ptr<File> File::fromExternalMrl( MediaLibraryPtr ml, const std::stri
     static const std::string req = "SELECT * FROM " + policy::FileTable::Name +  " WHERE mrl = ? "
             "AND folder_id IS NULL";
     auto file = fetch( ml, req, mrl );
-    if ( file == nullptr )
+    if ( file == nullptr ) {
+        // for testing
+        LOG_INFO( "not found: mrl=", mrl );
         return nullptr;
+    }
+
+    // for testing
+    LOG_INFO( "found: mrl=", mrl, " media_id=", file->m_mediaId );
+
     assert( file->m_isExternal == true );
     return file;
 }
