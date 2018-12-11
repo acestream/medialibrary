@@ -640,6 +640,25 @@ bool MediaLibrary::deletePlaylist( int64_t playlistId )
     }
 }
 
+bool MediaLibrary::deleteMedia( int64_t mediaId )
+{
+    try
+    {
+        MediaPtr media = Media::fetch( this, mediaId );
+        if( media == nullptr ) {
+            return false;
+        }
+        else {
+            return media->destroy();
+        }
+    }
+    catch ( const sqlite::errors::Generic& ex )
+    {
+        LOG_ERROR( "Failed to delete media: ", ex.what() );
+        return false;
+    }
+}
+
 bool MediaLibrary::addToStreamHistory( MediaPtr media )
 {
     try

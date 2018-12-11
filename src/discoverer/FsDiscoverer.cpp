@@ -331,8 +331,17 @@ void FsDiscoverer::checkFiles( std::shared_ptr<fs::IDirectory> parentFolderFs,
         {
             LOG_INFO( "File ", file->mrl(), " not found on filesystem, deleting it" );
             auto media = file->media();
-            if ( media != nullptr && media->isDeleted() == false )
+            if ( media != nullptr && media->isDeleted() == false ) {
                 media->removeFile( *file );
+
+                if( media->type() == IMedia::Type::TransportFile ) {
+                    // delete media children (p2p items)
+                    for ( const auto& childMedia: media->children() ) {
+                        LOG_INFO( "checkFiles:remove_missing: delete child: id=", childMedia->id(), " p2p=", childMedia->isP2P() );
+                        childMedia->destroy();
+                    }
+                }
+            }
             else if ( file->isDeleted() == false )
             {
                 // This is unexpected, as the file should have been deleted when the media was
@@ -349,8 +358,9 @@ void FsDiscoverer::checkFiles( std::shared_ptr<fs::IDirectory> parentFolderFs,
                 continue;
             }
             auto media = f->media();
-            if ( media != nullptr )
+            if ( media != nullptr ) {
                 media->removeFile( *f );
+            }
             else
             {
                 // If there is no media associated with this file, the file had to be removed through

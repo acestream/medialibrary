@@ -760,4 +760,15 @@ void Media::MediaMetadata::set( const std::string& value )
     m_isSet = true;
 }
 
+bool Media::destroy()
+{
+    return DatabaseHelpers::destroy( m_ml, m_id );
+}
+
+std::vector<MediaPtr> Media::children()
+{
+    std::string req = "SELECT * FROM " + policy::MediaTable::Name + " WHERE parent_media_id = ? ";
+    return fetchAll<IMedia>( m_ml, req, m_id );
+}
+
 }

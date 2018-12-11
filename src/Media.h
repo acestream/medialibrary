@@ -149,6 +149,8 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
         static std::vector<MediaPtr> search( MediaLibraryPtr ml, const std::string& title );
         static std::vector<MediaPtr> fetchHistory( MediaLibraryPtr ml );
         static void clearHistory( MediaLibraryPtr ml );
+        bool destroy() override;
+        std::vector<MediaPtr> children();
 
 
 private:

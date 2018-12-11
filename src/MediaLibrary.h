@@ -110,6 +110,7 @@ class MediaLibrary : public IMediaLibrary, public IDeviceListerCb
         virtual std::vector<PlaylistPtr> playlists( SortingCriteria sort, bool desc ) override;
         virtual PlaylistPtr playlist( int64_t id ) const override;
         virtual bool deletePlaylist( int64_t playlistId ) override;
+        virtual bool deleteMedia( int64_t mediaId ) override;
 
         virtual bool addToStreamHistory( MediaPtr media ) override;
         virtual std::vector<HistoryPtr> lastStreamsPlayed() const override;
