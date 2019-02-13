@@ -339,7 +339,7 @@ class Tools
                     if ( i > nbRetries || sqlite::errors::isInnocuous( ex ) == false )
                         throw;
                     ++i;
-                    LOG_WARN( ex.what(), ". Retrying (", i, '/', nbRetries, ')' );
+                    LOG_ERROR( ex.what(), ". Retrying (", (int)i, '/', (int)nbRetries, ')' );
                 }
             }
         }
