@@ -324,6 +324,14 @@ void FsDiscoverer::checkFiles( std::shared_ptr<fs::IDirectory> parentFolderFs,
     using FilesT = decltype( files );
     using FilesToRemoveT = decltype( filesToRemove );
     using FilesToAddT = decltype( filesToAdd );
+
+    // Fix 'Disk I/O error (6410)' when deleting a lot of rows in transaction.
+    // For yet unknown reason this error started to appear on childMedia->destroy() call after some number of deletes.
+    // There was no such error in previous version of medialibrary, which has two main differences:
+    // - was built on another machine
+    // - 'Media' table has fewer fields and indexes
+    sqlite::Tools::executeRequest(m_ml->getConn(), "PRAGMA journal_mode = MEMORY");
+
     sqlite::Tools::withRetries( 3, [this, &parentFolder, &parentFolderFs]
                             ( FilesT files, FilesToAddT filesToAdd, FilesToRemoveT filesToRemove ) {
         auto t = m_ml->getConn()->newTransaction();
