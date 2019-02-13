@@ -153,7 +153,7 @@ std::shared_ptr<Media> File::media() const
     }
 
     // for testing
-    bool isnull = (m_media.get().lock() == nullptr);
+    bool isnull = (!m_media.isCached() || m_media.get().lock() == nullptr);
     LOG_INFO( "got media: mrl=", m_mrl, " media_id=", m_mediaId, " cached=", m_media.isCached(), " isnull=", isnull );
 
     auto lock = m_media.lock();
