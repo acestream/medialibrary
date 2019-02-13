@@ -24,6 +24,7 @@
 
 #include <vector>
 #include <memory>
+#include <ctime>
 
 #include "IMediaLibrary.h"
 #include "IFile.h"
@@ -100,14 +101,8 @@ class IMedia
 
         virtual int64_t id() const = 0;
         virtual Type type() = 0;
-        virtual bool isParsed() = 0;
-        virtual bool isP2P() = 0;
-        virtual int64_t parentMediaId() = 0;
         virtual SubType subType() const = 0;
         virtual void setType( Type type ) = 0;
-        virtual void setParsed( bool parsed ) = 0;
-        virtual void setP2P( bool p2p ) = 0;
-        virtual void setParentMediaId( int64_t id ) = 0;
         virtual const std::string& title() const = 0;
         virtual bool setTitle( const std::string& title ) = 0;
         virtual AlbumTrackPtr albumTrack() const = 0;
@@ -151,6 +146,21 @@ class IMedia
         virtual bool setMetadata( MetadataType type, int64_t value ) = 0;
         virtual bool save() = 0;
         virtual bool destroy() = 0;
+
+        //:ace
+        virtual bool isParsed() = 0;
+        virtual void setParsed( bool parsed ) = 0;
+        virtual bool isP2P() = 0;
+        virtual void setP2P( bool p2p ) = 0;
+        virtual int64_t parentMediaId() = 0;
+        virtual void setParentMediaId( int64_t id ) = 0;
+        virtual void setP2PInfo( const std::string& infohash, int file_index ) = 0;
+        virtual const std::string& p2pInfohash() const = 0;
+        virtual int p2pFileIndex() const = 0;
+        virtual bool isP2PLive() = 0;
+        virtual void setP2PLive( int value ) = 0;
+        virtual std::time_t lastPlayedDate() const = 0;
+        ///ace
 };
 
 }

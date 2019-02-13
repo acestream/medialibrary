@@ -76,7 +76,10 @@ Media::Media( MediaLibraryPtr ml, sqlite::Row& row )
         >> m_isPresent
         >> m_isParsed
         >> m_isP2P
-        >> m_parentMediaId;
+        >> m_parentMediaId
+        >> m_p2pInfohash
+        >> m_p2pFileIndex
+        >> m_isP2PLive;
 }
 
 Media::Media( MediaLibraryPtr ml, const std::string& title, Type type )
@@ -94,10 +97,13 @@ Media::Media( MediaLibraryPtr ml, const std::string& title, Type type )
     , m_filename( title )
     , m_isFavorite( false )
     , m_isPresent( true )
+    , m_changed( false )
     , m_isParsed( false )
     , m_isP2P( false )
+    , m_isP2PLive( -1 )
     , m_parentMediaId( 0 )
-    , m_changed( false )
+    , m_p2pInfohash("")
+    , m_p2pFileIndex(0)
 {
 }
 
@@ -368,11 +374,13 @@ bool Media::save()
 {
     static const std::string req = "UPDATE " + policy::MediaTable::Name + " SET "
             "type = ?, subtype = ?, duration = ?, release_date = ?,"
-            "thumbnail = ?, title = ?, is_parsed = ?, is_p2p = ?, parent_media_id = ? WHERE id_media = ?";
+            "thumbnail = ?, title = ?, is_parsed = ?, is_p2p = ?, parent_media_id = ?,"
+            "p2p_infohash = ?, p2p_file_index = ?, p2p_is_live = ? WHERE id_media = ?";
     if ( m_changed == false )
         return true;
     if ( sqlite::Tools::executeUpdate( m_ml->getConn(), req, m_type, m_subType, m_duration,
-                                       m_releaseDate, m_thumbnail, m_title, m_isParsed, m_isP2P, m_parentMediaId, m_id ) == false )
+                                       m_releaseDate, m_thumbnail, m_title, m_isParsed, m_isP2P, m_parentMediaId,
+                                       m_p2pInfohash, m_p2pFileIndex, m_isP2PLive, m_id ) == false )
     {
         return false;
     }
@@ -424,7 +432,21 @@ void Media::removeFile( File& file )
     }));
 }
 
-std::vector<MediaPtr> Media::listAll( MediaLibraryPtr ml, IMedia::Type type, SortingCriteria sort, bool desc )
+std::vector<MediaPtr> Media::listVideo( MediaLibraryPtr ml, int is_p2p, int is_live, SortingCriteria sort, bool desc )
+{
+    return listAll(ml, IMedia::Type::Video, sort, desc, is_p2p, is_live, -1);
+}
+
+std::vector<MediaPtr> Media::listAudio( MediaLibraryPtr ml, int is_p2p, int is_live, SortingCriteria sort, bool desc )
+{
+    return listAll(ml, IMedia::Type::Audio, sort, desc, is_p2p, is_live, -1);
+}
+std::vector<MediaPtr> Media::listTransportFiles( MediaLibraryPtr ml, int is_parsed, SortingCriteria sort, bool desc )
+{
+    return listAll(ml, IMedia::Type::TransportFile, sort, desc, -1, -1, is_parsed);
+}
+
+std::vector<MediaPtr> Media::listAll( MediaLibraryPtr ml, IMedia::Type type, SortingCriteria sort, bool desc, int is_p2p, int is_live, int is_parsed )
 {
     std::string req;
     if ( sort == SortingCriteria::LastModificationDate || sort == SortingCriteria::FileSize )
@@ -433,16 +455,25 @@ std::vector<MediaPtr> Media::listAll( MediaLibraryPtr ml, IMedia::Type type, Sor
                 + policy::FileTable::Name + " f ON m.id_media = f.media_id"
                 " WHERE m.type = ?"
                 " AND f.type = ?";
+
+        req += (is_p2p == -1) ? " AND -1 = ?" : " AND is_p2p = ? ";
+        req += (is_live == -1) ? " AND -1 = ?" : " AND p2p_is_live = ? ";
+        req += (is_parsed == -1) ? " AND -1 = ?" : " AND is_parsed = ? ";
+
         if ( sort == SortingCriteria::LastModificationDate )
             req += " ORDER BY f.last_modification_date";
         else
             req += " ORDER BY f.size";
         if ( desc == true )
             req += " DESC";
-        return fetchAll<IMedia>( ml, req, type, File::Type::Main );
+        return fetchAll<IMedia>( ml, req, type, File::Type::Main, is_p2p, is_live, is_parsed );
     }
-    req = "SELECT * FROM " + policy::MediaTable::Name + " WHERE type = ? AND "
-            "is_present != 0 ORDER BY ";
+    req = "SELECT * FROM " + policy::MediaTable::Name + " WHERE type = ? ";
+    // Use dummy "-1=?" condition as smth that is always true (we need '?' placeholder because of fetchAll call)
+    req += (is_p2p == -1) ? " AND -1 = ?" : " AND is_p2p = ? ";
+    req += (is_live == -1) ? " AND -1 = ?" : " AND p2p_is_live = ? ";
+    req += (is_parsed == -1) ? " AND -1 = ?" : " AND is_parsed = ? ";
+    req += " AND is_present != 0 ORDER BY ";
     switch ( sort )
     {
     case SortingCriteria::Duration:
@@ -465,7 +496,7 @@ std::vector<MediaPtr> Media::listAll( MediaLibraryPtr ml, IMedia::Type type, Sor
     if ( desc == true )
         req += " DESC";
 
-    return fetchAll<IMedia>( ml, req, type );
+    return fetchAll<IMedia>( ml, req, type, is_p2p, is_live, is_parsed );
 }
 
 int64_t Media::id() const
@@ -478,21 +509,6 @@ IMedia::Type Media::type()
     return m_type;
 }
 
-bool Media::isParsed()
-{
-    return m_isParsed;
-}
-
-bool Media::isP2P()
-{
-    return m_isP2P;
-}
-
-int64_t Media::parentMediaId()
-{
-    return m_parentMediaId;
-}
-
 IMedia::SubType Media::subType() const
 {
     return m_subType;
@@ -503,30 +519,6 @@ void Media::setType( Type type )
     if ( m_type == type )
         return;
     m_type = type;
-    m_changed = true;
-}
-
-void Media::setParsed( bool parsed )
-{
-    if ( m_isParsed == parsed )
-        return;
-    m_isParsed = parsed;
-    m_changed = true;
-}
-
-void Media::setP2P( bool p2p )
-{
-    if ( m_isP2P == p2p )
-        return;
-    m_isP2P = p2p;
-    m_changed = true;
-}
-
-void Media::setParentMediaId( int64_t id )
-{
-    if ( m_parentMediaId == id )
-        return;
-    m_parentMediaId = id;
     m_changed = true;
 }
 
@@ -581,7 +573,10 @@ void Media::createTable( sqlite::Connection* connection )
             "is_present BOOLEAN NOT NULL DEFAULT 1,"
             "is_parsed BOOLEAN NOT NULL DEFAULT 0,"
             "is_p2p BOOLEAN NOT NULL DEFAULT 0,"
-            "parent_media_id INTEGER"
+            "parent_media_id INTEGER,"
+            "p2p_infohash TEXT COLLATE NOCASE,"
+            "p2p_file_index INTEGER NOT NULL DEFAULT 0,"
+            "p2p_is_live INTEGER NOT NULL DEFAULT -1"
             ")";
 
     const std::string vtableReq = "CREATE VIRTUAL TABLE IF NOT EXISTS "
@@ -604,6 +599,16 @@ void Media::createTriggers( sqlite::Connection* connection )
 {
     const std::string indexReq = "CREATE INDEX IF NOT EXISTS index_last_played_date ON "
             + policy::MediaTable::Name + "(last_played_date DESC)";
+    const std::string indexReq2 = "CREATE INDEX IF NOT EXISTS index_parent_media_id ON "
+            + policy::MediaTable::Name + "(parent_media_id ASC)";
+    const std::string indexReq3 = "CREATE INDEX IF NOT EXISTS index_p2p_infohash ON "
+            + policy::MediaTable::Name + "(p2p_infohash ASC)";
+    const std::string indexReq4 = "CREATE INDEX IF NOT EXISTS index_p2p_file_index ON "
+            + policy::MediaTable::Name + "(p2p_file_index ASC)";
+    const std::string indexReq5 = "CREATE INDEX IF NOT EXISTS index_is_p2p ON "
+            + policy::MediaTable::Name + "(is_p2p ASC)";
+    const std::string indexReq6 = "CREATE INDEX IF NOT EXISTS index_p2p_is_live ON "
+            + policy::MediaTable::Name + "(p2p_is_live ASC)";
     static const std::string triggerReq = "CREATE TRIGGER IF NOT EXISTS has_files_present AFTER UPDATE OF "
             "is_present ON " + policy::FileTable::Name +
             " BEGIN "
@@ -639,6 +644,11 @@ void Media::createTriggers( sqlite::Connection* connection )
               " END";
 
     sqlite::Tools::executeRequest( connection, indexReq );
+    sqlite::Tools::executeRequest( connection, indexReq2 );
+    sqlite::Tools::executeRequest( connection, indexReq3 );
+    sqlite::Tools::executeRequest( connection, indexReq4 );
+    sqlite::Tools::executeRequest( connection, indexReq5 );
+    sqlite::Tools::executeRequest( connection, indexReq6 );
     sqlite::Tools::executeRequest( connection, triggerReq );
     sqlite::Tools::executeRequest( connection, triggerReq2 );
     sqlite::Tools::executeRequest( connection, vtableInsertTrigger );
@@ -771,4 +781,191 @@ std::vector<MediaPtr> Media::children()
     return fetchAll<IMedia>( m_ml, req, m_id );
 }
 
+//:ace
+bool Media::isParsed()
+{
+    return m_isParsed;
 }
+
+void Media::setParsed( bool parsed )
+{
+    if ( m_isParsed == parsed )
+        return;
+    m_isParsed = parsed;
+    m_changed = true;
+}
+
+bool Media::isP2P()
+{
+    return m_isP2P;
+}
+
+void Media::setP2P( bool p2p )
+{
+    if ( m_isP2P == p2p )
+        return;
+    m_isP2P = p2p;
+    m_changed = true;
+}
+
+int64_t Media::parentMediaId()
+{
+    return m_parentMediaId;
+}
+
+void Media::setParentMediaId( int64_t id )
+{
+    if ( m_parentMediaId == id )
+        return;
+    m_parentMediaId = id;
+    m_changed = true;
+}
+
+void Media::setP2PInfo( const std::string& infohash, int file_index )
+{
+    if ( m_p2pInfohash == infohash && m_p2pFileIndex == file_index )
+        return;
+    m_p2pFileIndex = file_index;
+    m_p2pInfohash = infohash;
+    m_changed = true;
+}
+
+const std::string& Media::p2pInfohash() const
+{
+    return m_p2pInfohash;
+}
+
+int Media::p2pFileIndex() const
+{
+    return m_p2pFileIndex;
+}
+
+bool Media::isP2PLive()
+{
+    return m_isP2PLive;
+}
+
+void Media::setP2PLive( int value )
+{
+    if ( m_isP2PLive == value )
+        return;
+    m_isP2PLive = value;
+    m_changed = true;
+}
+
+std::time_t Media::lastPlayedDate() const
+{
+    return m_lastPlayedDate;
+}
+
+std::vector<MediaPtr> Media::findByInfohash( MediaLibraryPtr ml, const std::string& infohash, int fileIndex, SortingCriteria sort, bool desc )
+{
+    std::string req;
+    if ( sort == SortingCriteria::LastModificationDate || sort == SortingCriteria::FileSize )
+    {
+        req = "SELECT m.* FROM " + policy::MediaTable::Name + " m INNER JOIN "
+                + policy::FileTable::Name + " f ON m.id_media = f.media_id"
+                " WHERE m.p2p_infohash = ? AND m.p2p_file_index = ?"
+                " AND f.type = ?";
+        if ( sort == SortingCriteria::LastModificationDate )
+            req += " ORDER BY f.last_modification_date";
+        else
+            req += " ORDER BY f.size";
+        if ( desc == true )
+            req += " DESC";
+        return fetchAll<IMedia>( ml, req, infohash, fileIndex, File::Type::Main );
+    }
+    req = "SELECT * FROM " + policy::MediaTable::Name + " WHERE p2p_infohash = ? AND p2p_file_index = ? AND "
+            "is_present != 0 ORDER BY ";
+    switch ( sort )
+    {
+    case SortingCriteria::Duration:
+        req += "duration";
+        break;
+    case SortingCriteria::InsertionDate:
+        req += "insertion_date";
+        break;
+    case SortingCriteria::ReleaseDate:
+        req += "release_date";
+        break;
+    case SortingCriteria::PlayCount:
+        req += "play_count";
+        desc = !desc; // Make decreasing order default for play count sorting
+        break;
+    default:
+        req += "title";
+        break;
+    }
+    if ( desc == true )
+        req += " DESC";
+
+    return fetchAll<IMedia>( ml, req, infohash, fileIndex );
+}
+
+std::vector<MediaPtr> Media::findByParent( MediaLibraryPtr ml, int64_t parentId, SortingCriteria sort, bool desc )
+{
+    std::string req;
+    if ( sort == SortingCriteria::LastModificationDate || sort == SortingCriteria::FileSize )
+    {
+        req = "SELECT m.* FROM " + policy::MediaTable::Name + " m INNER JOIN "
+                + policy::FileTable::Name + " f ON m.id_media = f.media_id"
+                " WHERE m.parent_media_id = ?"
+                " AND f.type = ?";
+        if ( sort == SortingCriteria::LastModificationDate )
+            req += " ORDER BY f.last_modification_date";
+        else
+            req += " ORDER BY f.size";
+        if ( desc == true )
+            req += " DESC";
+        return fetchAll<IMedia>( ml, req, parentId, File::Type::Main );
+    }
+    req = "SELECT * FROM " + policy::MediaTable::Name + " WHERE parent_media_id = ? AND "
+            "is_present != 0 ORDER BY ";
+    switch ( sort )
+    {
+    case SortingCriteria::Duration:
+        req += "duration";
+        break;
+    case SortingCriteria::InsertionDate:
+        req += "insertion_date";
+        break;
+    case SortingCriteria::ReleaseDate:
+        req += "release_date";
+        break;
+    case SortingCriteria::PlayCount:
+        req += "play_count";
+        desc = !desc; // Make decreasing order default for play count sorting
+        break;
+    default:
+        req += "title";
+        break;
+    }
+    if ( desc == true )
+        req += " DESC";
+
+    return fetchAll<IMedia>( ml, req, parentId );
+}
+
+std::vector<MediaPtr> Media::findDuplicatesByInfohash( MediaLibraryPtr ml )
+{
+    std::string req;
+    req = "SELECT * FROM " + policy::MediaTable::Name +  " WHERE is_present != 0 AND p2p_infohash IN ("
+          "SELECT p2p_infohash FROM " + policy::MediaTable::Name + " WHERE p2p_infohash IS NOT NULL "
+          "AND p2p_infohash != '' AND is_present != 0 GROUP BY p2p_infohash, p2p_file_index HAVING COUNT(*) > 1)";
+
+    return fetchAll<IMedia>( ml, req );
+}
+
+bool Media::copyMetadata(MediaLibraryPtr ml, int64_t sourceId, int64_t destId)
+{
+    MediaPtr source = fetch(ml, sourceId);
+    if(source == nullptr)
+        return false;
+
+    static const std::string req = "UPDATE " + policy::MediaTable::Name + " SET "
+            "play_count = ?, last_played_date = ? WHERE id_media = ?";
+    return sqlite::Tools::executeUpdate( ml->getConn(), req, source->playCount(), source->lastPlayedDate(), destId );
+}
+///ace
+
+} // namespace medialibrary

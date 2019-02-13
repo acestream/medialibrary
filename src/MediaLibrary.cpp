@@ -440,19 +440,19 @@ MediaPtr MediaLibrary::addP2PMedia( const int64_t parentMediaId, uint8_t type, c
     }
 }
 
-std::vector<MediaPtr> MediaLibrary::audioFiles( SortingCriteria sort, bool desc ) const
+std::vector<MediaPtr> MediaLibrary::audioFiles( int is_p2p, int is_live, SortingCriteria sort, bool desc ) const
 {
-    return Media::listAll( this, IMedia::Type::Audio, sort, desc );
+    return Media::listAudio( this, is_p2p, is_live, sort, desc );
 }
 
-std::vector<MediaPtr> MediaLibrary::videoFiles( SortingCriteria sort, bool desc ) const
+std::vector<MediaPtr> MediaLibrary::videoFiles( int is_p2p, int is_live, SortingCriteria sort, bool desc ) const
 {
-    return Media::listAll( this, IMedia::Type::Video, sort, desc );
+    return Media::listVideo( this, is_p2p, is_live, sort, desc );
 }
 
-std::vector<MediaPtr> MediaLibrary::transportFiles( SortingCriteria sort, bool desc ) const
+std::vector<MediaPtr> MediaLibrary::transportFiles( int is_parsed, SortingCriteria sort, bool desc ) const
 {
-    return Media::listAll( this, IMedia::Type::TransportFile, sort, desc );
+    return Media::listTransportFiles( this, is_parsed, sort, desc );
 }
 
 bool MediaLibrary::isExtensionSupported( const char* ext )
@@ -1386,4 +1386,32 @@ bool MediaLibrary::isDeviceKnown( const std::string& uuid ) const
     return Device::fromUuid( this, uuid ) != nullptr;
 }
 
+//:ace
+std::vector<MediaPtr> MediaLibrary::findMediaByInfohash( const std::string& infohash, int fileIndex, SortingCriteria sort, bool desc ) const
+{
+    return Media::findByInfohash( this, infohash, fileIndex, sort, desc );
 }
+
+std::vector<MediaPtr> MediaLibrary::findMediaByParent( int64_t parentId, SortingCriteria sort, bool desc ) const
+{
+    return Media::findByParent( this, parentId, sort, desc );
+}
+
+std::vector<MediaPtr> MediaLibrary::findDuplicatesByInfohash() const
+{
+    return Media::findDuplicatesByInfohash( this );
+}
+
+bool MediaLibrary::copyMetadata( int64_t sourceId, int64_t destId ) const
+{
+    return Media::copyMetadata(this, sourceId, destId);
+}
+
+bool MediaLibrary::removeOrphanTransportFiles() const
+{
+    //TODO: implement
+    return false;
+}
+///ace
+
+} // namespace medialibrary

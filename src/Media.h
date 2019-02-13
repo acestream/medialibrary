@@ -90,14 +90,8 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
 
         virtual int64_t id() const override;
         virtual Type type() override;
-        virtual bool isParsed() override;
-        virtual bool isP2P() override;
-        virtual int64_t parentMediaId() override;
         virtual SubType subType() const override;
         virtual void setType( Type type ) override;
-        virtual void setParsed( bool parsed ) override;
-        virtual void setP2P( bool p2p ) override;
-        virtual void setParentMediaId( int64_t id ) override;
         virtual const std::string& title() const override;
         virtual bool setTitle( const std::string& title ) override;
         ///
@@ -145,12 +139,34 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
         virtual FilePtr addExternalMrl( const std::string& mrl, IFile::Type type ) override;
         void removeFile( File& file );
 
-        static std::vector<MediaPtr> listAll(MediaLibraryPtr ml, Type type , SortingCriteria sort, bool desc);
+        static std::vector<MediaPtr> listAll(MediaLibraryPtr ml, Type type , SortingCriteria sort, bool desc, int is_p2p, int is_live, int is_parsed);
         static std::vector<MediaPtr> search( MediaLibraryPtr ml, const std::string& title );
         static std::vector<MediaPtr> fetchHistory( MediaLibraryPtr ml );
         static void clearHistory( MediaLibraryPtr ml );
         bool destroy() override;
         std::vector<MediaPtr> children();
+
+        //:ace
+        virtual bool isParsed() override;
+        virtual void setParsed( bool parsed ) override;
+        virtual bool isP2P() override;
+        virtual void setP2P( bool p2p ) override;
+        virtual int64_t parentMediaId() override;
+        virtual void setParentMediaId( int64_t id ) override;
+        virtual void setP2PInfo( const std::string& infohash, int file_index ) override;
+        virtual const std::string& p2pInfohash() const override;
+        virtual int p2pFileIndex() const override;
+        virtual bool isP2PLive() override;
+        virtual void setP2PLive( int value ) override;
+        virtual std::time_t lastPlayedDate() const override;
+        static std::vector<MediaPtr> findByInfohash(MediaLibraryPtr ml, const std::string& infohash, int fileIndex, SortingCriteria sort, bool desc);
+        static std::vector<MediaPtr> findByParent(MediaLibraryPtr ml, int64_t parentId, SortingCriteria sort, bool desc);
+        static std::vector<MediaPtr> findDuplicatesByInfohash(MediaLibraryPtr ml);
+        static bool copyMetadata(MediaLibraryPtr ml, int64_t sourceId, int64_t destId);
+        static std::vector<MediaPtr> listVideo(MediaLibraryPtr ml, int is_p2p, int is_live, SortingCriteria sort, bool desc);
+        static std::vector<MediaPtr> listAudio(MediaLibraryPtr ml, int is_p2p, int is_live, SortingCriteria sort, bool desc);
+        static std::vector<MediaPtr> listTransportFiles(MediaLibraryPtr ml, int is_parsed, SortingCriteria sort, bool desc);
+        ///ace
 
 
 private:
@@ -172,9 +188,6 @@ private:
         std::string m_filename;
         bool m_isFavorite;
         bool m_isPresent;
-        bool m_isParsed;
-        bool m_isP2P;
-        int64_t m_parentMediaId;
 
         // Auto fetched related properties
         mutable Cache<AlbumTrackPtr> m_albumTrack;
@@ -185,6 +198,15 @@ private:
         bool m_changed;
 
         friend policy::MediaTable;
+
+        //:ace
+        bool m_isParsed;
+        bool m_isP2P;
+        int m_isP2PLive;
+        int64_t m_parentMediaId;
+        int m_p2pFileIndex;
+        std::string m_p2pInfohash;
+        ///ace
 };
 
 }

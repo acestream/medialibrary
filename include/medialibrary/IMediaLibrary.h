@@ -243,9 +243,9 @@ class IMediaLibrary
         virtual MediaPtr media( const std::string& mrl ) const = 0;
         virtual MediaPtr addMedia( const std::string& mrl ) = 0;
         virtual MediaPtr addP2PMedia( int64_t parentMediaId, uint8_t type, const std::string& title, const std::string& mrl ) = 0;
-        virtual std::vector<MediaPtr> audioFiles( SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
-        virtual std::vector<MediaPtr> videoFiles( SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
-        virtual std::vector<MediaPtr> transportFiles( SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
+        virtual std::vector<MediaPtr> audioFiles( int is_p2p, int is_live, SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
+        virtual std::vector<MediaPtr> videoFiles( int is_p2p, int is_live, SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
+        virtual std::vector<MediaPtr> transportFiles( int is_parsed, SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
         virtual AlbumPtr album( int64_t id ) const = 0;
         virtual std::vector<AlbumPtr> albums( SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
         virtual ShowPtr show( const std::string& name ) const = 0;
@@ -380,6 +380,14 @@ class IMediaLibrary
         virtual void forceRescan() = 0;
 
         virtual void reinit() = 0;
+
+        //:ace
+        virtual std::vector<MediaPtr> findMediaByInfohash( const std::string& infohash, int fileIndex, SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
+        virtual std::vector<MediaPtr> findMediaByParent( int64_t parentId, SortingCriteria sort = SortingCriteria::Default, bool desc = false ) const = 0;
+        virtual std::vector<MediaPtr> findDuplicatesByInfohash() const = 0;
+        virtual bool copyMetadata( int64_t sourceId, int64_t destId ) const = 0;
+        virtual bool removeOrphanTransportFiles() const = 0;
+        ///ace
 };
 
 }

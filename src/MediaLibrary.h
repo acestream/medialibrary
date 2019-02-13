@@ -72,9 +72,9 @@ class MediaLibrary : public IMediaLibrary, public IDeviceListerCb
         virtual MediaPtr media( const std::string& path ) const override;
         virtual MediaPtr addMedia( const std::string& mrl ) override;
         virtual MediaPtr addP2PMedia( int64_t parentMediaId, uint8_t type, const std::string& title, const std::string& mrl ) override;
-        virtual std::vector<MediaPtr> audioFiles( SortingCriteria sort, bool desc) const override;
-        virtual std::vector<MediaPtr> videoFiles( SortingCriteria sort, bool desc) const override;
-        virtual std::vector<MediaPtr> transportFiles( SortingCriteria sort, bool desc) const override;
+        virtual std::vector<MediaPtr> audioFiles( int is_p2p, int is_live, SortingCriteria sort, bool desc) const override;
+        virtual std::vector<MediaPtr> videoFiles( int is_p2p, int is_live, SortingCriteria sort, bool desc) const override;
+        virtual std::vector<MediaPtr> transportFiles( int is_parsed, SortingCriteria sort, bool desc) const override;
 
         virtual void addDiscoveredFile( std::shared_ptr<fs::IFile> fileFs,
                                         std::shared_ptr<Folder> parentFolder,
@@ -157,6 +157,14 @@ class MediaLibrary : public IMediaLibrary, public IDeviceListerCb
         virtual void reinit() override;
 
         static bool isExtensionSupported( const char* ext );
+
+        //:ace
+        virtual std::vector<MediaPtr> findMediaByInfohash( const std::string& infohash, int fileIndex, SortingCriteria sort, bool desc ) const override;
+        virtual std::vector<MediaPtr> findMediaByParent( int64_t parentId, SortingCriteria sort, bool desc ) const override;
+        virtual std::vector<MediaPtr> findDuplicatesByInfohash() const override;
+        virtual bool copyMetadata( int64_t sourceId, int64_t destId ) const override;
+        virtual bool removeOrphanTransportFiles() const override;
+        ///ace
 
     protected:
         // Allow access to unit test MediaLibrary implementations
