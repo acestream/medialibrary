@@ -962,6 +962,9 @@ bool Media::copyMetadata(MediaLibraryPtr ml, int64_t sourceId, int64_t destId)
     if(source == nullptr)
         return false;
 
+    if(source->lastPlayedDate() == 0)
+        return false;
+
     static const std::string req = "UPDATE " + policy::MediaTable::Name + " SET "
             "play_count = ?, last_played_date = ? WHERE id_media = ?";
     return sqlite::Tools::executeUpdate( ml->getConn(), req, source->playCount(), source->lastPlayedDate(), destId );
