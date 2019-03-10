@@ -157,7 +157,7 @@ class IMedia
         virtual void setP2PInfo( const std::string& infohash, int file_index ) = 0;
         virtual const std::string& p2pInfohash() const = 0;
         virtual int p2pFileIndex() const = 0;
-        virtual bool isP2PLive() = 0;
+        virtual int isP2PLive() = 0;
         virtual void setP2PLive( int value ) = 0;
         virtual std::time_t lastPlayedDate() const = 0;
         ///ace

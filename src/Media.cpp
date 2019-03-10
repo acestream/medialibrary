@@ -840,7 +840,7 @@ int Media::p2pFileIndex() const
     return m_p2pFileIndex;
 }
 
-bool Media::isP2PLive()
+int Media::isP2PLive()
 {
     return m_isP2PLive;
 }

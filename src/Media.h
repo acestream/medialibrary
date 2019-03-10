@@ -156,7 +156,7 @@ class Media : public IMedia, public DatabaseHelpers<Media, policy::MediaTable>
         virtual void setP2PInfo( const std::string& infohash, int file_index ) override;
         virtual const std::string& p2pInfohash() const override;
         virtual int p2pFileIndex() const override;
-        virtual bool isP2PLive() override;
+        virtual int isP2PLive() override;
         virtual void setP2PLive( int value ) override;
         virtual std::time_t lastPlayedDate() const override;
         static std::vector<MediaPtr> findByInfohash(MediaLibraryPtr ml, const std::string& infohash, int fileIndex, SortingCriteria sort, bool desc);
